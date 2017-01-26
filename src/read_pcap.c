@@ -49,7 +49,7 @@
 #include "p2c_tcp.h"
 #include "p2c_udp.h"
 
-#include "pcap2cnn.h"
+#include "p2c.h"
 
 
 static char *progname;
@@ -205,7 +205,6 @@ void p2c_usage (void) {
 	printf ("usage: %s \n", progname);
 	printf ("			-i [ Monitor device ] (optional)\n");
 	printf ("			-r [ Pcap dump file ] (optional)\n");
-	printf ("			-O ( Use OKI_HASH: optional, default is MD5)\n");
 	printf ("			-d ( Show debug information: optional)\n");
 	printf ("			[ pcap filter expression ] (optional)\n");
 	printf ("			(if -u specified, then [ UNIX domain socket path ]) \n");
