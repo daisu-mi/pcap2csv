@@ -1,0 +1,11 @@
+* Build
+
+	just run 
+
+	./configure
+
+	./make
+
+	./make install
+
+	(*) pcap is required
