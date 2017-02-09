@@ -70,10 +70,10 @@ void p2c_lback(u_char *, const struct pcap_pkthdr *, const u_char *);
 void p2c_ether(u_char *, const struct pcap_pkthdr *, const u_char *);
 void p2c_ip(u_char *, u_int, const struct pcap_pkthdr *);
 void p2c_ip6(u_char *, u_int, const struct pcap_pkthdr *);
-void p2c_tcp(u_char *, u_int, char *, char *, u_short, char *, const struct pcap_pkthdr *);
-void p2c_udp(u_char *, u_int, char *, char *, u_short, char *, const struct pcap_pkthdr *);
-void p2c_icmp(u_char *, u_int, char *, char *, u_short, char *, const struct pcap_pkthdr *);
-void p2c_icmp6(u_char *, u_int, char *, char *, u_short, char *, const struct pcap_pkthdr *);
+void p2c_tcp(u_char *, u_int, char *, char *, char *, char *, u_short, char *, const struct pcap_pkthdr *);
+void p2c_udp(u_char *, u_int, char *, char *, char *, char *, u_short, char *, const struct pcap_pkthdr *);
+void p2c_icmp(u_char *, u_int, char *, char *, char *, char *, u_short, char *, const struct pcap_pkthdr *);
+void p2c_icmp6(u_char *, u_int, char *, char *, char *, char *, u_short, char *, const struct pcap_pkthdr *);
 
 #endif
 

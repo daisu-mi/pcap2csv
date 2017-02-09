@@ -40,6 +40,10 @@
 
 #include <pcap.h>
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "p2c_ether.h"
 #include "p2c_ip.h"
 #include "p2c_ip6.h"
@@ -50,10 +54,13 @@
 #include "p2c_udp.h"
 
 #include "p2c.h"
-
+#include "aslookup.h"
+#include "patricia.h"
 
 static char *progname;
 static int debug = P2C_FALSE;
+
+patricia_tree_t *cf_tree;
 
 /* for IPv6 */
 int use6 = P2C_FALSE;
@@ -61,19 +68,30 @@ int use6 = P2C_FALSE;
 /* for Counter */
 long counter = 0;
 
+/* aslookup */
+int aslookup = P2C_FALSE;
+
 int main (int argc, char *argv[]) {
 	char *dumpfile = NULL;
 	char *device = NULL;
 	char *filter = NULL;
+	char configfile[P2C_BUFSIZ];
 	int op;
 
 	progname = argv[0];
 
+	setvbuf(stdout, 0, _IONBF, 0);
+
+	if ((cf_tree = New_Patricia(PATRICIA_MAXBITS)) == NULL){
+		fprintf(stderr, "fatal error in creating patricia trie\n");
+		exit(EXIT_FAILURE);
+	}
+
 	/* getopt */
 #ifdef USE_INET6
-	while ((op = getopt (argc, argv, "i:r:R:6dh?")) != -1)
+	while ((op = getopt (argc, argv, "i:r:R:l:6dh?")) != -1)
 #else
-	while ((op = getopt (argc, argv, "i:r:R:dh?")) != -1)
+	while ((op = getopt (argc, argv, "i:r:R:l:dh?")) != -1)
 #endif
 		{
 
@@ -95,6 +113,23 @@ int main (int argc, char *argv[]) {
 			case 'r':		/* read local files */
 				dumpfile = optarg;
 				break;
+
+			case 'l':		/* aslookup */
+				if (optarg == NULL){
+					p2c_usage();
+					exit(EXIT_FAILURE);
+				}
+				strncpy(configfile, optarg, P2C_BUFSIZ);
+				if (p2c_aslookup_config_load(cf_tree, configfile) != P2C_TRUE){
+					p2c_usage();
+					exit(EXIT_FAILURE);
+				}
+				if (cf_tree == NULL){
+					p2c_usage();
+					exit(EXIT_FAILURE);
+				}
+				aslookup = P2C_TRUE;
+        break;
 
 			case 'h':
 			case '?':		/* usage */
@@ -274,6 +309,9 @@ void p2c_ip (u_char * p, u_int len, const struct pcap_pkthdr *h) {
 	struct ip *ip;
 	char srcip[P2C_BUFSIZ];
 	char dstip[P2C_BUFSIZ];
+	char srcasn[P2C_BUFSIZ];
+	char dstasn[P2C_BUFSIZ];
+
 	u_short ip_id;
 	char mesgbuf[P2C_BUFSIZ];
 	u_char *packet;
@@ -293,25 +331,37 @@ void p2c_ip (u_char * p, u_int len, const struct pcap_pkthdr *h) {
 
 	memset ((void *) &srcip, '\0', P2C_BUFSIZ);
 	memset ((void *) &dstip, '\0', P2C_BUFSIZ);
+	strcpy(srcasn, "0");
+	strcpy(dstasn, "0");
 
 	inet_ntop (AF_INET, (void *) (&ip->ip_src), srcip, P2C_BUFSIZ);
 	inet_ntop (AF_INET, (void *) (&ip->ip_dst), dstip, P2C_BUFSIZ);
+
+	if (aslookup == P2C_TRUE){
+		if (p2c_aslookup_lookup(cf_tree, srcip, srcasn) != P2C_TRUE){
+			strcpy(srcasn, "0");
+		}
+		if (p2c_aslookup_lookup(cf_tree, dstip, dstasn) != P2C_TRUE){
+			strcpy(dstasn, "0");
+		}
+	}
+
 	ip_id = ip->ip_id;
 
 	switch (ip->ip_p) {
 		case IPPROTO_TCP:
 			p2c_tcp ((u_char *) (p + ip->ip_hl * 4), (u_int) (len - ip->ip_hl * 4),
-				 srcip, dstip, ip_id, mesgbuf, h);
+				 srcip, dstip, srcasn, dstasn, ip_id, mesgbuf, h);
 			break;
 
 		case IPPROTO_UDP:
 			p2c_udp ((u_char *) (p + ip->ip_hl * 4), (u_int) (len - ip->ip_hl * 4),
-				 srcip, dstip, ip_id, mesgbuf, h);
+				 srcip, dstip, srcasn, dstasn, ip_id, mesgbuf, h);
 			break;
 
 		case IPPROTO_ICMP:
 			p2c_icmp ((u_char *) (p + ip->ip_hl * 4), (u_int) (len - ip->ip_hl * 4),
-		srcip, dstip, ip_id, mesgbuf, h);
+		srcip, dstip, srcasn, dstasn, ip_id, mesgbuf, h);
 			break;
 
 		default:
@@ -325,6 +375,8 @@ void p2c_ip6 (u_char * p, u_int len, const struct pcap_pkthdr *h) {
 	struct ip6_hdr *ip6;
 	char srcip[P2C_BUFSIZ];
 	char dstip[P2C_BUFSIZ];
+	char srcasn[P2C_BUFSIZ];
+	char dstasn[P2C_BUFSIZ];
 	char mesgbuf[P2C_BUFSIZ];
 	u_char *packet;
 
@@ -337,26 +389,38 @@ void p2c_ip6 (u_char * p, u_int len, const struct pcap_pkthdr *h) {
 
 	memset ((void *) &srcip, '\0', P2C_BUFSIZ);
 	memset ((void *) &dstip, '\0', P2C_BUFSIZ);
+	strcpy(srcasn, "0");
+	strcpy(dstasn, "0");
+
 	inet_ntop (AF_INET6, (void *) (&ip6->ip6_src), srcip, P2C_BUFSIZ);
 	inet_ntop (AF_INET6, (void *) (&ip6->ip6_dst), dstip, P2C_BUFSIZ);
+
+	if (aslookup == P2C_TRUE){
+		if (p2c_aslookup_lookup(cf_tree, srcip, srcasn) != P2C_TRUE){
+			strcpy(srcasn, "0");
+		}
+		if (p2c_aslookup_lookup(cf_tree, dstip, dstasn) != P2C_TRUE){
+			strcpy(dstasn, "0");
+		}
+	}
 
 	switch (ip6->ip6_nxt) {
 		case IPPROTO_TCP:
 			p2c_tcp ((u_char *) (p + ntohs (ip6->ip6_plen)),
 				 (u_int) (len - ntohs (ip6->ip6_plen)),
-				 srcip, dstip, 0, mesgbuf, h);
+				 srcip, dstip, srcasn, dstasn, 0, mesgbuf, h);
 			break;
 
 		case IPPROTO_UDP:
 			p2c_udp ((u_char *) (p + ntohs (ip6->ip6_plen)),
 				 (u_int) (len - ntohs (ip6->ip6_plen)),
-				 srcip, dstip, 0, mesgbuf, h);
+				 srcip, dstip, srcasn, dstasn, 0, mesgbuf, h);
 			break;
 
 		case IPPROTO_ICMPV6:
 			p2c_icmp6 ((u_char *) (p + ntohs (ip6->ip6_plen)),
 		 (u_int) (len - ntohs (ip6->ip6_plen)),
-		 srcip, dstip, 0, mesgbuf, h);
+		 srcip, dstip, srcasn, dstasn, 0, mesgbuf, h);
 			break;
 
 		default:
@@ -366,7 +430,7 @@ void p2c_ip6 (u_char * p, u_int len, const struct pcap_pkthdr *h) {
 
 
 /* process tcp header */
-void p2c_tcp (u_char * p, u_int len, char *srcip, char *dstip, u_short ip_id, char *mesgbuf, const struct pcap_pkthdr *h) {
+void p2c_tcp (u_char * p, u_int len, char *srcip, char *dstip, char *srcasn, char *dstasn, u_short ip_id, char *mesgbuf, const struct pcap_pkthdr *h) {
 	struct tcphdr *th;
 
 	if (len < TCP_HDRLEN) {
@@ -376,14 +440,14 @@ void p2c_tcp (u_char * p, u_int len, char *srcip, char *dstip, u_short ip_id, ch
 		th = (struct tcphdr *) p;
 	}
 
-	printf("%ld,%ld,%lu,%s,%s,%d,%d,%d\n",
+	printf("%ld,%ld,%lu,%s,%s,%s,%s,%d,%d,%d\n",
 		h->ts.tv_sec, h->ts.tv_usec, counter,
-		srcip, dstip, ntohs (th->th_sport), ntohs (th->th_dport), IPPROTO_TCP);
+		srcip, dstip, srcasn, dstasn, ntohs (th->th_sport), ntohs (th->th_dport), IPPROTO_TCP);
 	return;
 }
 
 /* process udp header */
-void p2c_udp (u_char * p, u_int len, char *srcip, char *dstip, u_short ip_id, char *mesgbuf, const struct pcap_pkthdr *h) {
+void p2c_udp (u_char * p, u_int len, char *srcip, char *dstip, char *srcasn, char *dstasn, u_short ip_id, char *mesgbuf, const struct pcap_pkthdr *h) {
 	struct udphdr *uh;
 
 	if (len < UDP_HDRLEN) {
@@ -393,14 +457,14 @@ void p2c_udp (u_char * p, u_int len, char *srcip, char *dstip, u_short ip_id, ch
 		uh = (struct udphdr *) p;
 	}
 
-	printf("%ld,%ld,%lu,%s,%s,%d,%d,%d\n",
+	printf("%ld,%ld,%lu,%s,%s,%s,%s,%d,%d,%d\n",
 		h->ts.tv_sec, h->ts.tv_usec, counter,
-		srcip, dstip, ntohs (uh->uh_sport), ntohs (uh->uh_dport), IPPROTO_UDP);
+		srcip, dstip, srcasn, dstasn, ntohs (uh->uh_sport), ntohs (uh->uh_dport), IPPROTO_UDP);
 	return;
 }
 
 /* process icmp header */
-void p2c_icmp (u_char * p, u_int len, char *srcip, char *dstip, u_short ip_id, char *mesgbuf, const struct pcap_pkthdr *h) {
+void p2c_icmp (u_char * p, u_int len, char *srcip, char *dstip, char *srcasn, char *dstasn, u_short ip_id, char *mesgbuf, const struct pcap_pkthdr *h) {
 	struct icmphdr *ih;
 
 	if (len < ICMP_MIN_HDRLEN) {
@@ -410,14 +474,14 @@ void p2c_icmp (u_char * p, u_int len, char *srcip, char *dstip, u_short ip_id, c
 		ih = (struct icmphdr *) p;
 	}
 
-	printf("%ld,%ld,%lu,%s,%s,%d,%d,%d\n",
+	printf("%ld,%ld,%lu,%s,%s,%s,%s,%d,%d,%d\n",
 		h->ts.tv_sec, h->ts.tv_usec, counter,
-		srcip, dstip,  (int)(ih->icmp_type), (int)(ih->icmp_code), IPPROTO_ICMP);
+		srcip, dstip,  srcasn, dstasn, (int)(ih->icmp_type), (int)(ih->icmp_code), IPPROTO_ICMP);
 	return;
 }
 
 /* process icmp6 header */
-void p2c_icmp6 (u_char * p, u_int len, char *srcip, char *dstip, u_short ip_id, char *mesgbuf, const struct pcap_pkthdr *h) {
+void p2c_icmp6 (u_char * p, u_int len, char *srcip, char *dstip, char *srcasn, char *dstasn, u_short ip_id, char *mesgbuf, const struct pcap_pkthdr *h) {
 	struct icmp6hdr *ih6;
 
 	/* ikutu dakke ...*/
@@ -428,9 +492,9 @@ void p2c_icmp6 (u_char * p, u_int len, char *srcip, char *dstip, u_short ip_id, 
 		ih6 = (struct icmp6hdr *) p;
 	}
 
-	printf("%ld,%ld,%lu,%s,%s,%d,%d,%d\n",
+	printf("%ld,%ld,%lu,%s,%s,%s,%s,%d,%d,%d\n",
 		h->ts.tv_sec, h->ts.tv_usec, counter,
-		srcip, dstip,  (int)(ih6->icmp6_type), (int)(ih6->icmp6_code), IPPROTO_ICMP);
+		srcip, dstip, srcasn, dstasn, (int)(ih6->icmp6_type), (int)(ih6->icmp6_code), IPPROTO_ICMP);
 	return;
 }
 
