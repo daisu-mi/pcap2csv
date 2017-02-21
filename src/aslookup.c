@@ -237,11 +237,11 @@ void p2c_aslookup_destroy_tree(patricia_tree_t *cf_tree) {
 void *p2c_aslookup_destroy_func(void *data) {
 	char *tmp;
 	if (data == NULL){
-		return;
+		return data;
 	}
 	else {
 		tmp = (char *)data;
 		free(tmp);
 	}
-	return;
+	return data;
 }

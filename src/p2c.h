@@ -27,11 +27,37 @@
 #ifndef __P2C_H__
 #define __P2C_H__
 
+#ifndef P2C_SNAPLEN
 #define P2C_SNAPLEN	128
-#define P2C_BUFSIZ	1024
+#endif
 
+#ifndef P2C_BUFSIZ
+#define P2C_BUFSIZ	1024
+#endif
+
+#ifndef P2C_TRUE
 #define P2C_TRUE		1
+#endif
+
+#ifndef P2C_FALSE
 #define P2C_FALSE		-1
+#endif
+
+#ifndef P2C_WORD2VEC_L3
+#define P2C_WORD2VEC_L3  3
+#endif
+
+#ifndef P2C_WORD2VEC_L4
+#define P2C_WORD2VEC_L4  4
+#endif
+
+#ifndef P2C_WORD2VEC_L7
+#define P2C_WORD2VEC_L7  7
+#endif
+
+#ifndef P2C_WORD2VEC_LALL
+#define P2C_WORD2VEC_LALL	0  
+#endif
 
 #ifndef NULL_HDRLEN
 #define NULL_HDRLEN	4
@@ -57,23 +83,44 @@
 #define UDP_HDRLEN			8
 #endif
 
-#ifndef ICMP_MIN_HDRLEN			/* 8 bit for ICMP type, 8 bit for ICMP code */
-#define ICMP_MIN_HDRLEN	2
+#ifndef ICMP_MIN_HDRLEN	/* type 8bit, code 8bit, checksum 16bit */
+#define ICMP_MIN_HDRLEN	4
+#endif
+
+#ifndef ICMPV6_MIN_HDRLEN	/* type 8bit, code 8bit, checksum 16bit */
+#define ICMPV6_MIN_HDRLEN	4
 #endif
 
 #include <pcap.h>
+
+struct pcap_csv {
+	long counter;
+	char srcip[P2C_BUFSIZ];
+	char dstip[P2C_BUFSIZ];
+	char srcasn[P2C_BUFSIZ];
+	char dstasn[P2C_BUFSIZ];
+	uint16_t proto;
+	uint16_t sport;
+	uint16_t dport;
+	int vec_l3[256][256];
+	int vec_l4[256][256];
+	int vec_l7[256][256];
+};
 
 void p2c_init();
 void p2c_pcap(char *, char *, char *);
 void p2c_usage(void);
 void p2c_lback(u_char *, const struct pcap_pkthdr *, const u_char *);
 void p2c_ether(u_char *, const struct pcap_pkthdr *, const u_char *);
-void p2c_ip(u_char *, u_int, const struct pcap_pkthdr *);
-void p2c_ip6(u_char *, u_int, const struct pcap_pkthdr *);
-void p2c_tcp(u_char *, u_int, char *, char *, char *, char *, u_short, char *, const struct pcap_pkthdr *);
-void p2c_udp(u_char *, u_int, char *, char *, char *, char *, u_short, char *, const struct pcap_pkthdr *);
-void p2c_icmp(u_char *, u_int, char *, char *, char *, char *, u_short, char *, const struct pcap_pkthdr *);
-void p2c_icmp6(u_char *, u_int, char *, char *, char *, char *, u_short, char *, const struct pcap_pkthdr *);
+void p2c_ip(u_char *, u_int, const struct pcap_pkthdr *, struct pcap_csv *);
+void p2c_ip6(u_char *, u_int, const struct pcap_pkthdr *, struct pcap_csv *);
+void p2c_tcp(u_char *, u_int, const struct pcap_pkthdr *, struct pcap_csv *);
+void p2c_udp(u_char *, u_int, const struct pcap_pkthdr *, struct pcap_csv *);
+void p2c_icmp(u_char *, u_int, const struct pcap_pkthdr *, struct pcap_csv *);
+void p2c_icmp6(u_char *, u_int, const struct pcap_pkthdr *, struct pcap_csv *);
+void p2c_data(u_char *, u_int, const struct pcap_pkthdr *, struct pcap_csv *);
+void p2c_word2vec4 (u_char *, u_int, int, struct pcap_csv *);
+void p2c_word2vec8 (u_char *, u_int, int, struct pcap_csv *);
 
 #endif
 
