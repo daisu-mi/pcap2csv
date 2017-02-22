@@ -94,7 +94,7 @@
 #include <pcap.h>
 
 struct pcap_csv {
-	long counter;
+	uint32_t counter;
 	char srcip[P2C_BUFSIZ];
 	char dstip[P2C_BUFSIZ];
 	char srcasn[P2C_BUFSIZ];

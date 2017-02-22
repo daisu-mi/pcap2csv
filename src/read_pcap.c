@@ -72,12 +72,17 @@ int word2vec_flag = P2C_FALSE;
 /* aslookup */
 int aslookup = P2C_FALSE;
 
+/* counter */
+uint32_t counter = 0;
+uint32_t counter_limit = 0;
+
 int main (int argc, char *argv[]) {
 	char *dumpfile = NULL;
 	char *device = NULL;
 	char *filter = NULL;
 	char configfile[P2C_BUFSIZ];
 	int op;
+	int counter_tmp = 0;
 
 	progname = argv[0];
 
@@ -90,9 +95,9 @@ int main (int argc, char *argv[]) {
 
 	/* getopt */
 #ifdef USE_INET6
-	while ((op = getopt (argc, argv, "i:r:l:x:6dh?")) != -1)
+	while ((op = getopt (argc, argv, "c:i:r:l:x:6dh?")) != -1)
 #else
-	while ((op = getopt (argc, argv, "i:r:l:x:dh?")) != -1)
+	while ((op = getopt (argc, argv, "c:i:r:l:x:dh?")) != -1)
 #endif
 		{
 
@@ -131,6 +136,21 @@ int main (int argc, char *argv[]) {
 				}
 				aslookup = P2C_TRUE;
         break;
+
+			case 'c':		/* capture count */
+				if (optarg == NULL){
+					p2c_usage();
+					exit(EXIT_FAILURE);
+				}
+				counter_tmp = (int)strtol(optarg, (char **)NULL, 10);
+				if (counter_tmp <= 0){
+					p2c_usage();
+					exit(EXIT_FAILURE);
+				}
+				else {
+					counter_limit = (uint32_t)counter_tmp;
+				}
+				break;
 
 			case 'x':   /* word2vec */
 				if (optarg == NULL){
@@ -277,7 +297,11 @@ void p2c_lback (u_char * userdata, const struct pcap_pkthdr *h, const u_char * p
 		memset ((void *) pc, '\0', sizeof(struct pcap_csv));
 	}
 
-	pc->counter += 1;
+	counter += 1;
+	if (counter_limit > 0 && counter > counter_limit){
+		exit(EXIT_SUCCESS);
+	}
+	pc->counter = counter;
 
 	do {
 		/* paranoia NULL check */
@@ -290,7 +314,7 @@ void p2c_lback (u_char * userdata, const struct pcap_pkthdr *h, const u_char * p
 			break;
 		}
 		else {
-			p2c_ip ((u_char *) (p + NULL_HDRLEN), (u_int) (h->len - NULL_HDRLEN), h, pc);
+			p2c_ip ((u_char *) (p + NULL_HDRLEN), (u_int) (h->caplen - NULL_HDRLEN), h, pc);
 		}
 	} while(0);
 
@@ -304,7 +328,7 @@ void p2c_ether (u_char * userdata, const struct pcap_pkthdr *h, const u_char * p
 	struct pcap_csv *pc;
 	struct ether_header *ep;
 	u_int ether_type;
-	int skiplen = ETHER_HDRLEN;
+	u_int skiplen = ETHER_HDRLEN;
 
 	if ((pc = (struct pcap_csv *)malloc(sizeof(struct pcap_csv))) == NULL){
 		fprintf(stderr, "malloc failed\n");
@@ -314,7 +338,11 @@ void p2c_ether (u_char * userdata, const struct pcap_pkthdr *h, const u_char * p
 		memset ((void *) pc, '\0', sizeof(struct pcap_csv));
 	}
 
-	pc->counter += 1;
+	counter += 1;
+	if (counter_limit > 0 && counter > counter_limit){
+		exit(EXIT_SUCCESS);
+	}
+	pc->counter = counter;
 
 	do {
 		/* if capture size is too short */
@@ -333,11 +361,11 @@ void p2c_ether (u_char * userdata, const struct pcap_pkthdr *h, const u_char * p
 
 		switch (ether_type) {
 			case ETHERTYPE_IP:
-				p2c_ip ((u_char *) (p + skiplen), (u_int) (h->len - skiplen), h, pc);
+				p2c_ip ((u_char *) (p + skiplen), (u_int) (h->caplen - skiplen), h, pc);
 				break;
 
 			case ETHERTYPE_IPV6:
-				p2c_ip6 ((u_char *) (p + skiplen), (u_int) (h->len - skiplen), h, pc);
+				p2c_ip6 ((u_char *) (p + skiplen), (u_int) (h->caplen - skiplen), h, pc);
 				break;
 
 			default:
@@ -369,7 +397,7 @@ void p2c_ip (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_csv
 	}
 
 	if (word2vec == P2C_TRUE){
-		p2c_word2vec4(p, (int)ip->ip_hl * 4, P2C_WORD2VEC_L3, pc);
+		p2c_word2vec4(p, (u_int)ip->ip_hl * 4, P2C_WORD2VEC_L3, pc);
 	}
 
 	memset ((void *) pc->srcip, '\0', P2C_BUFSIZ);
@@ -409,7 +437,7 @@ void p2c_ip (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_csv
 void p2c_ip6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_csv *pc) {
 	struct ip6_hdr *ip6;
 
-	if (len < sizeof (struct ip6_hdr)) {
+	if (len < IP6_HDRLEN) {
 		return;
 	}
 	else {
@@ -422,7 +450,7 @@ void p2c_ip6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_cs
 	inet_ntop (AF_INET6, (void *) (&ip6->ip6_dst), pc->dstip, P2C_BUFSIZ);
 
 	if (word2vec == P2C_TRUE){
-		p2c_word2vec4(p, (int)ntohs(ip6->ip6_plen), P2C_WORD2VEC_L3, pc);
+		p2c_word2vec4(p, (u_int)(sizeof(struct ip6_hdr)), P2C_WORD2VEC_L3, pc);
 	}
 
 	if (aslookup == P2C_TRUE){
@@ -436,18 +464,15 @@ void p2c_ip6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_cs
 
 	switch (ip6->ip6_nxt) {
 		case IPPROTO_TCP:
-			p2c_tcp ((u_char *) (p + ntohs (ip6->ip6_plen)),
-				 (u_int) (len - ntohs (ip6->ip6_plen)), h, pc);
+			p2c_tcp ((u_char *) (p + IP6_HDRLEN), (u_int) (len - IP6_HDRLEN), h, pc);
 			break;
 
 		case IPPROTO_UDP:
-			p2c_udp ((u_char *) (p + ntohs (ip6->ip6_plen)),
-				 (u_int) (len - ntohs (ip6->ip6_plen)), h, pc);
+			p2c_udp ((u_char *) (p + IP6_HDRLEN), (u_int) (len - IP6_HDRLEN), h, pc);
 			break;
 
 		case IPPROTO_ICMPV6:
-			p2c_icmp6 ((u_char *) (p + ntohs (ip6->ip6_plen)),
-		 (u_int) (len - ntohs (ip6->ip6_plen)), h, pc);
+			p2c_icmp6 ((u_char *) (p + IP6_HDRLEN), (u_int) (len - IP6_HDRLEN), h, pc);
 			break;
 
 		default:
@@ -460,6 +485,7 @@ void p2c_ip6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_cs
 /* process tcp header */
 void p2c_tcp (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_csv *pc) {
 	struct tcphdr *th;
+	u_int tcplength = 0;
 
 	if (len < TCP_HDRLEN) {
 		return;
@@ -468,14 +494,21 @@ void p2c_tcp (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_cs
 		th = (struct tcphdr *) p;
 	}
 
+	tcplength = (u_int)(TH_OFF(th) * 4);
+
 	if (word2vec == P2C_TRUE){
-		p2c_word2vec4(p, (int)(TH_OFF(th) * 4), P2C_WORD2VEC_L4, pc);
+		p2c_word2vec4(p, tcplength, P2C_WORD2VEC_L4, pc);
 	}
 	pc->proto = IPPROTO_TCP;
 	pc->sport = ntohs(th->th_sport);
 	pc->dport = ntohs(th->th_dport);
 
-	p2c_data((u_char *)p, (u_int)len, h, pc);
+	if (len <= tcplength){
+		p2c_data((u_char *)p, (u_int)0, h, pc);
+	}
+	else {
+		p2c_data((u_char *)(p + tcplength), (u_int)(len - tcplength), h, pc);
+	}
 	return;
 }
 
@@ -491,13 +524,13 @@ void p2c_udp (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_cs
 	}
 
 	if (word2vec == P2C_TRUE){
-		p2c_word2vec4(p, (int)UDP_HDRLEN, P2C_WORD2VEC_L4, pc);
+		p2c_word2vec4(p, (u_int)UDP_HDRLEN, P2C_WORD2VEC_L4, pc);
 	}
 	pc->proto = IPPROTO_UDP;
 	pc->sport = ntohs(uh->uh_sport);
 	pc->dport = ntohs(uh->uh_dport);
 
-	p2c_data((u_char *)p, (u_int)len, h, pc);
+	p2c_data((u_char *)(p + UDP_HDRLEN), (u_int)(len - UDP_HDRLEN), h, pc);
 	return;
 }
 
@@ -513,13 +546,13 @@ void p2c_icmp (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_c
 	}
 
 	if (word2vec == P2C_TRUE){
-		p2c_word2vec4(p, (int)ICMP_MIN_HDRLEN, P2C_WORD2VEC_L4, pc);
+		p2c_word2vec4(p, (u_int)ICMP_MIN_HDRLEN, P2C_WORD2VEC_L4, pc);
 	}
 	pc->proto = IPPROTO_ICMP;
 	pc->sport = (short)(ih->icmp_type);
 	pc->dport = (short)(ih->icmp_code);
 
-	p2c_data((u_char *)p, (u_int)len, h, pc);
+	p2c_data((u_char *)(p + ICMP_MIN_HDRLEN), (u_int)(len - ICMP_MIN_HDRLEN), h, pc);
 	return;
 }
 
@@ -536,13 +569,13 @@ void p2c_icmp6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_
 	}
 
 	if (word2vec == P2C_TRUE){
-		p2c_word2vec4(p, (int)ICMPV6_MIN_HDRLEN, P2C_WORD2VEC_L4, pc);
+		p2c_word2vec4(p, (u_int)ICMPV6_MIN_HDRLEN, P2C_WORD2VEC_L4, pc);
 	}
 	pc->proto = IPPROTO_ICMPV6;
 	pc->sport = (short)(ih6->icmp6_type);
 	pc->dport = (short)(ih6->icmp6_code);
 
-	p2c_data((u_char *)p, (u_int)len, h, pc);
+	p2c_data((u_char *)(p + ICMPV6_MIN_HDRLEN), (u_int)(len - ICMPV6_MIN_HDRLEN), h, pc);
 	return;
 }
 
@@ -550,9 +583,13 @@ void p2c_data (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_c
 	int i = 0, j = 0;
 	int max = 16;
 
+	if (word2vec == P2C_TRUE){
+		p2c_word2vec4(p, (u_int)len, P2C_WORD2VEC_L7, pc);
+	}
+
 	printf("%ld,%ld,%lu,%s,%s,%s,%s,%d,%d,%d",
 		h->ts.tv_sec, h->ts.tv_usec,
-		pc->counter,
+		(long)pc->counter,
 		pc->srcip, pc->dstip, pc->srcasn, pc->dstasn,
 		(int)(pc->sport), (int)(pc->dport), (int)(pc->proto));
 
@@ -590,7 +627,8 @@ void p2c_data (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_c
 }
 
 void p2c_word2vec8 (u_char * p, u_int len, int layer, struct pcap_csv *pc) {
-	int i = 0, j = 0;
+	u_int i = 0;
+	u_int j = 1;
 	uint8_t *first = NULL, *second = NULL;
 
 	for (i = 0; j < len; i++){
@@ -625,12 +663,18 @@ void p2c_word2vec8 (u_char * p, u_int len, int layer, struct pcap_csv *pc) {
 }
 
 void p2c_word2vec4 (u_char * p, u_int len, int layer, struct pcap_csv *pc) {
-	int i = 0, j = 0;
+	u_int i = 0;
+	u_int j = 1;
 	uint8_t *first8 = NULL, *second8 = NULL;
 	uint8_t first4 = 0;
 	uint8_t second4 = 0;
 	uint8_t third4 = 0;
 	uint8_t fourth4 = 0;
+	uint8_t backup4 = 0;
+
+	if ((int)len < 0){
+		return;
+	}
 
 	for (i = 0; j < len; i++){
 		j = i + 1;
@@ -664,23 +708,33 @@ void p2c_word2vec4 (u_char * p, u_int len, int layer, struct pcap_csv *pc) {
 				pc->vec_l3[first4][second4] += 1;
 				pc->vec_l3[second4][third4] += 1;
 				pc->vec_l3[third4][fourth4] += 1;
+				if (i != 0){
+					pc->vec_l3[backup4][first4] += 1;
+				}
 				break;
 				
 			case P2C_WORD2VEC_L4:
 				pc->vec_l4[first4][second4] += 1;
 				pc->vec_l4[second4][third4] += 1;
 				pc->vec_l4[third4][fourth4] += 1;
+				if (i != 0){
+					pc->vec_l4[backup4][first4] += 1;
+				}
 				break;
 
 			case P2C_WORD2VEC_L7:
 				pc->vec_l7[first4][second4] += 1;
 				pc->vec_l7[second4][third4] += 1;
 				pc->vec_l7[third4][fourth4] += 1;
+				if (i != 0){
+					pc->vec_l7[backup4][first4] += 1;
+				}
 				break;
 
 			default:
 				break;
 		}
+		backup4 = fourth4;
 	}
 	return;
 }
