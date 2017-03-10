@@ -1,8 +1,8 @@
 # pcap2csv
 
-PCAP2CSV is a simple command line program which outputs CSV formatted data from raw PCAP packet capture data. Each packet recorded in the PCAP file is transformed to one line data, along with the following format.
+PCAP2CSV is a simple command line program which outputs CSV formatted data from raw PCAP packet capture data. Each packet recorded in the PCAP file is transformed to one line data, aligned by the following format.
 
-| Number | Column  | Type     | Description|
+| Number | Row Name| Type     | Description|
 |:------:|:-------:|:--------:|:-----------:|
 |1       |tv_sec   |long      |Recorded time (tv_sec) in the PCAP file.|
 |2       |tv_usec  |long      |Recorded time (tv_usec) in the PCAP file.|
@@ -14,6 +14,7 @@ PCAP2CSV is a simple command line program which outputs CSV formatted data from 
 |8       |sport/type |int       |Source TCP or UDP Portnumber, or ICMP type.|
 |9       |dport/code |int       |Destination TCP or UDP Portnumber, or ICMP code.|
 |10      |proto     |int       |IP Proto (TCP, UDP or ICMP).|
+|11-266  |bag-of-Fs |int       |Bag of Fields (x00, x01, x02 .... x0F, x10 .... Xfe, Xff).|
 
 If you want to convert IP address to asnumber, please prepare CAIDA's [Routeviews Prefix to AS mappings Dataset (pfx2as) for IPv4 and IPv6](https://www.caida.org/data/routing/routeviews-prefix2as.xml). The latest version only supports to convert IPv4 addresses to AS Numbers.
 
@@ -24,8 +25,25 @@ If you want to convert IP address to asnumber, please prepare CAIDA's [Routeview
 - `% sudo ./make install`
 
 # how to use
-- (example) % p2c -r pcap.cap -l routerview.pfx2as
 - `r : read PCAP data`
 - `i : read interface directly`
-- `l : read routeview dataset`
+- `c : max number to read`
+- `l : lookup AS number from IP address with routeview dataset`
+- `x : dump data field with a bag-of-fields (a.k.a, bag-of-words) algorithm`
 
+# use caess 
+ 1. Read from 100 packets in pcap file  
+ `% p2c -r pcap.cap -c 100`
+ 1. Read from interface directly  
+ `% sudo p2c -i eth0`
+ 1. Aslookup option  
+ `% (wget http://data.caida.org/datasets/routing/routeviews-prefix2as/.... && gunzip (filename).pfx2as.gz)`  
+ `% p2c -r pcap.cap -l filename.pfx2as`
+ 1. Bug-of-Field option to analyze layer 7 payloads  
+ `% p2c -r pcpa.cap -x 7`
+ 1. Bug-of-Field option to analyze other portion  
+ `% p2c -r pcap.cap -x 0`  # observe L3 Header, L4 Header, and L7 payloads  
+ `% p2c -r pcap.cap -x 3`  # observe L3 Header  
+ `% p2c -r pcap.cap -x 4`  # observe L4 Header  
+ `% p2c -r pcap.cap -x 7`  # observe L7 Payloads  
+  
