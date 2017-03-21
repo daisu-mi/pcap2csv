@@ -644,7 +644,6 @@ void p2c_word2vec8 (u_char * p, u_int len, int layer, struct pcap_csv *pc) {
 		switch(layer){
 			case P2C_WORD2VEC_L3:
 				pc->vec_l3[*first][*second] += 1;
-				printf("%d\n", pc->vec_l3[*first][*second]);
 				break;
 				
 			case P2C_WORD2VEC_L4:
