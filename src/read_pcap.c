@@ -67,10 +67,9 @@ int use6 = P2C_FALSE;
 
 /* word2vec */
 int word2vec = P2C_FALSE;
-int word2vec_flag = P2C_FALSE;
 int word2vec256 = P2C_FALSE;
-int word2vec256_flag = P2C_FALSE;
-int word2vecmax = 0;
+int word2vec_flag = P2C_FALSE;
+int word2vec_max = 0;
 
 /* aslookup */
 int aslookup = P2C_FALSE;
@@ -110,7 +109,7 @@ int main (int argc, char *argv[]) {
 				break;
 
 #ifdef USE_INET6
-			case '6':		/* use inet6 */
+			case '6':		/* use inet6 for future development */
 				use6 = P2C_TRUE;
 				break;
 #endif
@@ -164,13 +163,13 @@ int main (int argc, char *argv[]) {
 					p2c_usage();
 					exit(EXIT_FAILURE);
 				}	
-				word2vec256_flag = (int)strtol(optarg, (char **)NULL, 10);
-				if (word2vec256_flag < 0){
+				word2vec_flag = (int)strtol(optarg, (char **)NULL, 10);
+				if (word2vec_flag < 0){
 					p2c_usage();
 					exit(EXIT_FAILURE);
 				}
 				word2vec256 = P2C_TRUE;
-				word2vecmax = 256;
+				word2vec_max = 256;
 				break;
 
 			case 'x':   /* word2vec (-> make 256 matrix : default) */
@@ -188,7 +187,7 @@ int main (int argc, char *argv[]) {
 					exit(EXIT_FAILURE);
 				}
 				word2vec = P2C_TRUE;
-				word2vecmax = 16;
+				word2vec_max = 16;
 				break;
 
 			case 'h':
@@ -631,7 +630,7 @@ void p2c_icmp6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_
 
 void p2c_data (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_csv *pc) {
 	int i = 0, j = 0;
-	int max = word2vecmax;
+	int max = word2vec_max;
 
 	if (word2vec == P2C_TRUE){
 		p2c_word2vec4(p, (u_int)len, P2C_WORD2VEC_L7, pc);
@@ -647,7 +646,8 @@ void p2c_data (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_c
 		(int)(pc->sport), (int)(pc->dport), (int)(pc->proto));
 
 
-	if (word2vec == P2C_TRUE){
+	/* kitayo */
+	if (word2vec == P2C_TRUE || word2vec256 == P2C_TRUE){
 		for (i = 0; i < max; i++){
 			for (j = 0; j < max; j++){
 				switch(word2vec_flag){
@@ -694,9 +694,9 @@ void p2c_word2vec8 (u_char * p, u_int len, int layer, struct pcap_csv *pc) {
 		first = (uint8_t *)(p + i);
 		second = (uint8_t *)(p + j);
 
-		/*
+/*
 		printf("%d,%02d,%02d\n", i, *first, *second); 
-		*/
+*/
 
 		switch(layer){
 			case P2C_WORD2VEC_L3:
