@@ -47,9 +47,9 @@ struct binary_csv {
 void b2c_init();
 void b2c_usage(void);
 void b2c_file(char *);
-void b2c_data(void *, u_int, struct binary_csv *);
-void b2c_word2vec4 (void *, u_int, struct binary_csv *);
-void b2c_word2vec8 (void *, u_int, struct binary_csv *);
+void b2c_data(int, u_int, struct binary_csv *);
+void b2c_word2vec4 (int, u_int, struct binary_csv *);
+void b2c_word2vec8 (int, u_int, struct binary_csv *);
 
 #endif
 
