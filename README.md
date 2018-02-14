@@ -32,15 +32,15 @@ If you want to convert IP address to asnumber, please prepare CAIDA's [Routeview
 - `x : dump data field with a bag-of-fields (a.k.a, bag-of-words) algorithm`
 
 ## Use cases
- 1. Read from 100 packets in pcap file  
+ 1. Read 100 packets from a pcap file  
  `% p2c -r pcap.cap -c 100`
- 1. Read from interface directly  
+ 1. Read from Network Interface Card  
  `% sudo p2c -i eth0`
- 1. Aslookup option  
+ 1. Try aslookup option  
  `% (wget http://data.caida.org/datasets/routing/routeviews-prefix2as/.... && gunzip (filename).pfx2as.gz)`  
  `% p2c -r pcap.cap -l filename.pfx2as`
  1. Bug-of-Field option to analyze layer 7 payloads  
- `% p2c -r pcpa.cap -x 7`
+ `% p2c -r pcap.cap -x 7`
  1. Bug-of-Field option to analyze other portion  
  `% p2c -r pcap.cap -x 0`  # observe L3 Header, L4 Header, and L7 payloads  
  `% p2c -r pcap.cap -x 3`  # observe L3 Header  
@@ -48,10 +48,10 @@ If you want to convert IP address to asnumber, please prepare CAIDA's [Routeview
  `% p2c -r pcap.cap -x 7`  # observe L7 Payloads  
   
 # binary2csv 
-Binary2CSV is a BoF parser for any files (as well as txt)
+Binary2CSV is a Bug-of-Field parser for any files (as well as txt)
 
 ## Use cases
- 1. Read from files 
+ 1. Read from files  
  `% b2c -r README.md`
   
  
