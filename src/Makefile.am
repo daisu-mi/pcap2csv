@@ -1,4 +1,4 @@
-bin_PROGRAMS = p2c p2c256
+bin_PROGRAMS = p2c b2c
 
 p2c_SOURCES = read_pcap.c patricia.c aslookup.c
 
@@ -7,9 +7,8 @@ p2c_LDADD = \
 
 p2c_CFLAGS = 
 
-p2c256_SOURCES = read_pcap256.c patricia.c aslookup.c
+b2c_SOURCES = read_binary.c
 
-p2c256_LDADD = \
-  -lpcap 
+b2c_CFLAGS = 
 
-p2c256_CFLAGS = 
+b2c_LDADD = 

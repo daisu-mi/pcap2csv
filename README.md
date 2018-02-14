@@ -18,20 +18,20 @@ PCAP2CSV is a simple command line program which outputs CSV formatted data from 
 
 If you want to convert IP address to asnumber, please prepare CAIDA's [Routeviews Prefix to AS mappings Dataset (pfx2as) for IPv4 and IPv6](https://www.caida.org/data/routing/routeviews-prefix2as.xml). The latest version only supports to convert IPv4 addresses to AS Numbers.
 
-# how to compile
+## Compile
 * You may need pcap librarly and headers to compile.
 - `% ./configure`
 - `% ./make`
 - `% sudo ./make install`
 
-# how to use
+## Usage
 - `r : read PCAP data`
 - `i : read interface directly`
 - `c : max number to read`
 - `l : lookup AS number from IP address with routeview dataset`
 - `x : dump data field with a bag-of-fields (a.k.a, bag-of-words) algorithm`
 
-# use caess 
+## Use cases
  1. Read from 100 packets in pcap file  
  `% p2c -r pcap.cap -c 100`
  1. Read from interface directly  
@@ -47,3 +47,4 @@ If you want to convert IP address to asnumber, please prepare CAIDA's [Routeview
  `% p2c -r pcap.cap -x 4`  # observe L4 Header  
  `% p2c -r pcap.cap -x 7`  # observe L7 Payloads  
   
+# binary2csv 

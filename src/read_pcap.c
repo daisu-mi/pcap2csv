@@ -65,9 +65,12 @@ patricia_tree_t *cf_tree;
 /* for IPv6 */
 int use6 = P2C_FALSE;
 
-/* aslookup */
+/* word2vec */
 int word2vec = P2C_FALSE;
 int word2vec_flag = P2C_FALSE;
+int word2vec256 = P2C_FALSE;
+int word2vec256_flag = P2C_FALSE;
+int word2vecmax = 0;
 
 /* aslookup */
 int aslookup = P2C_FALSE;
@@ -95,9 +98,9 @@ int main (int argc, char *argv[]) {
 
 	/* getopt */
 #ifdef USE_INET6
-	while ((op = getopt (argc, argv, "c:i:r:l:x:6dh?")) != -1)
+	while ((op = getopt (argc, argv, "c:i:r:l:x:X:6dh?")) != -1)
 #else
-	while ((op = getopt (argc, argv, "c:i:r:l:x:dh?")) != -1)
+	while ((op = getopt (argc, argv, "c:i:r:l:x:X:dh?")) != -1)
 #endif
 		{
 
@@ -152,17 +155,40 @@ int main (int argc, char *argv[]) {
 				}
 				break;
 
-			case 'x':   /* word2vec */
+			case 'X':   /* word2vec256 (-> make 65536 matrix) */
 				if (optarg == NULL){
 					p2c_usage();
 					exit(EXIT_FAILURE);
 				}
+				else if (word2vec == P2C_TRUE){
+					p2c_usage();
+					exit(EXIT_FAILURE);
+				}	
+				word2vec256_flag = (int)strtol(optarg, (char **)NULL, 10);
+				if (word2vec256_flag < 0){
+					p2c_usage();
+					exit(EXIT_FAILURE);
+				}
+				word2vec256 = P2C_TRUE;
+				word2vecmax = 256;
+				break;
+
+			case 'x':   /* word2vec (-> make 256 matrix : default) */
+				if (optarg == NULL){
+					p2c_usage();
+					exit(EXIT_FAILURE);
+				}
+				else if (word2vec256 == P2C_TRUE){
+					p2c_usage();
+					exit(EXIT_FAILURE);
+				}	
 				word2vec_flag = (int)strtol(optarg, (char **)NULL, 10);
 				if (word2vec_flag < 0){
 					p2c_usage();
 					exit(EXIT_FAILURE);
 				}
 				word2vec = P2C_TRUE;
+				word2vecmax = 16;
 				break;
 
 			case 'h':
@@ -399,11 +425,15 @@ void p2c_ip (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_csv
 	if (word2vec == P2C_TRUE){
 		p2c_word2vec4(p, (u_int)ip->ip_hl * 4, P2C_WORD2VEC_L3, pc);
 	}
+	else if (word2vec256 == P2C_TRUE){
+		p2c_word2vec8(p, (u_int)ip->ip_hl * 4, P2C_WORD2VEC_L3, pc);
+	}
 
 	memset ((void *) pc->srcip, '\0', P2C_BUFSIZ);
 	memset ((void *) pc->dstip, '\0', P2C_BUFSIZ);
 	inet_ntop (AF_INET, (void *) (&ip->ip_src), pc->srcip, P2C_BUFSIZ);
 	inet_ntop (AF_INET, (void *) (&ip->ip_dst), pc->dstip, P2C_BUFSIZ);
+	pc->ttl = (int)ip->ip_ttl;
 
 	if (aslookup == P2C_TRUE){
 		if (p2c_aslookup_lookup(cf_tree, pc->srcip, pc->srcasn) != P2C_TRUE){
@@ -448,9 +478,13 @@ void p2c_ip6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_cs
 	memset ((void *) pc->dstip, '\0', P2C_BUFSIZ);
 	inet_ntop (AF_INET6, (void *) (&ip6->ip6_src), pc->srcip, P2C_BUFSIZ);
 	inet_ntop (AF_INET6, (void *) (&ip6->ip6_dst), pc->dstip, P2C_BUFSIZ);
+	pc->ttl = (int)ip6->ip6_hops;
 
 	if (word2vec == P2C_TRUE){
 		p2c_word2vec4(p, (u_int)(sizeof(struct ip6_hdr)), P2C_WORD2VEC_L3, pc);
+	}
+	else if (word2vec256 == P2C_TRUE){
+		p2c_word2vec8(p, (u_int)(sizeof(struct ip6_hdr)), P2C_WORD2VEC_L3, pc);
 	}
 
 	if (aslookup == P2C_TRUE){
@@ -499,6 +533,10 @@ void p2c_tcp (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_cs
 	if (word2vec == P2C_TRUE){
 		p2c_word2vec4(p, tcplength, P2C_WORD2VEC_L4, pc);
 	}
+	else if (word2vec256 == P2C_TRUE){
+		p2c_word2vec8(p, tcplength, P2C_WORD2VEC_L4, pc);
+	}
+
 	pc->proto = IPPROTO_TCP;
 	pc->sport = ntohs(th->th_sport);
 	pc->dport = ntohs(th->th_dport);
@@ -526,6 +564,10 @@ void p2c_udp (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_cs
 	if (word2vec == P2C_TRUE){
 		p2c_word2vec4(p, (u_int)UDP_HDRLEN, P2C_WORD2VEC_L4, pc);
 	}
+	else if (word2vec256 == P2C_TRUE){
+		p2c_word2vec8(p, (u_int)UDP_HDRLEN, P2C_WORD2VEC_L4, pc);
+	}
+
 	pc->proto = IPPROTO_UDP;
 	pc->sport = ntohs(uh->uh_sport);
 	pc->dport = ntohs(uh->uh_dport);
@@ -548,6 +590,10 @@ void p2c_icmp (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_c
 	if (word2vec == P2C_TRUE){
 		p2c_word2vec4(p, (u_int)ICMP_MIN_HDRLEN, P2C_WORD2VEC_L4, pc);
 	}
+	else if (word2vec256 == P2C_TRUE){
+		p2c_word2vec8(p, (u_int)ICMP_MIN_HDRLEN, P2C_WORD2VEC_L4, pc);
+	}
+
 	pc->proto = IPPROTO_ICMP;
 	pc->sport = (short)(ih->icmp_type);
 	pc->dport = (short)(ih->icmp_code);
@@ -571,6 +617,10 @@ void p2c_icmp6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_
 	if (word2vec == P2C_TRUE){
 		p2c_word2vec4(p, (u_int)ICMPV6_MIN_HDRLEN, P2C_WORD2VEC_L4, pc);
 	}
+	else if (word2vec256 == P2C_TRUE){
+		p2c_word2vec8(p, (u_int)ICMPV6_MIN_HDRLEN, P2C_WORD2VEC_L4, pc);
+	}
+
 	pc->proto = IPPROTO_ICMPV6;
 	pc->sport = (short)(ih6->icmp6_type);
 	pc->dport = (short)(ih6->icmp6_code);
@@ -581,10 +631,13 @@ void p2c_icmp6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_
 
 void p2c_data (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_csv *pc) {
 	int i = 0, j = 0;
-	int max = 16;
+	int max = word2vecmax;
 
 	if (word2vec == P2C_TRUE){
 		p2c_word2vec4(p, (u_int)len, P2C_WORD2VEC_L7, pc);
+	}
+	else if (word2vec256 == P2C_TRUE){
+		p2c_word2vec8(p, (u_int)len, P2C_WORD2VEC_L7, pc);
 	}
 
 	printf("%ld,%ld,%lu,%s,%s,%s,%s,%d,%d,%d",
@@ -633,6 +686,10 @@ void p2c_word2vec8 (u_char * p, u_int len, int layer, struct pcap_csv *pc) {
 
 	for (i = 0; j < len; i++){
 		j = i + 1;
+
+		if (j >= len){
+			break;
+		}
 
 		first = (uint8_t *)(p + i);
 		second = (uint8_t *)(p + j);
@@ -703,31 +760,50 @@ void p2c_word2vec4 (u_char * p, u_int len, int layer, struct pcap_csv *pc) {
 		*/
 
 		switch(layer){
+
 			case P2C_WORD2VEC_L3:
-				pc->vec_l3[first4][second4] += 1;
-				pc->vec_l3[second4][third4] += 1;
-				pc->vec_l3[third4][fourth4] += 1;
+				if (i == 0){
+					pc->vec_l3[first4][second4] += 1;
+				}
+				if (j < len){
+					pc->vec_l3[second4][third4] += 1;
+					pc->vec_l3[third4][fourth4] += 1;
+				}
+/*
 				if (i != 0){
 					pc->vec_l3[backup4][first4] += 1;
 				}
+*/
 				break;
 				
 			case P2C_WORD2VEC_L4:
-				pc->vec_l4[first4][second4] += 1;
-				pc->vec_l4[second4][third4] += 1;
-				pc->vec_l4[third4][fourth4] += 1;
+				if (i == 0){
+					pc->vec_l4[first4][second4] += 1;
+				}
+				if (j < len){
+					pc->vec_l4[second4][third4] += 1;
+					pc->vec_l4[third4][fourth4] += 1;
+				}
+/*
 				if (i != 0){
 					pc->vec_l4[backup4][first4] += 1;
 				}
+*/
 				break;
 
 			case P2C_WORD2VEC_L7:
-				pc->vec_l7[first4][second4] += 1;
-				pc->vec_l7[second4][third4] += 1;
-				pc->vec_l7[third4][fourth4] += 1;
+				if (i == 0){
+					pc->vec_l7[first4][second4] += 1;
+				}
+				if (j < len){
+					pc->vec_l7[second4][third4] += 1;
+					pc->vec_l7[third4][fourth4] += 1;
+				}
+/*
 				if (i != 0){
 					pc->vec_l7[backup4][first4] += 1;
 				}
+*/
 				break;
 
 			default:

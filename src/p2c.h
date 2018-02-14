@@ -95,6 +95,7 @@
 
 struct pcap_csv {
 	uint32_t counter;
+	int ttl;
 	char srcip[P2C_BUFSIZ];
 	char dstip[P2C_BUFSIZ];
 	char srcasn[P2C_BUFSIZ];
@@ -121,6 +122,7 @@ void p2c_icmp6(u_char *, u_int, const struct pcap_pkthdr *, struct pcap_csv *);
 void p2c_data(u_char *, u_int, const struct pcap_pkthdr *, struct pcap_csv *);
 void p2c_word2vec4 (u_char *, u_int, int, struct pcap_csv *);
 void p2c_word2vec8 (u_char *, u_int, int, struct pcap_csv *);
+void p2c_bof (u_char *, u_int, int, struct pcap_csv *);
 
 #endif
 

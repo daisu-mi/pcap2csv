@@ -86,7 +86,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = p2c$(EXEEXT) p2c256$(EXEEXT)
+bin_PROGRAMS = p2c$(EXEEXT) p2c256$(EXEEXT) b2c$(EXEEXT)
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.in
@@ -99,6 +99,11 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
+am_b2c_OBJECTS = b2c-read_binary.$(OBJEXT)
+b2c_OBJECTS = $(am_b2c_OBJECTS)
+b2c_DEPENDENCIES =
+b2c_LINK = $(CCLD) $(b2c_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o \
+	$@
 am_p2c_OBJECTS = p2c-read_pcap.$(OBJEXT) p2c-patricia.$(OBJEXT) \
 	p2c-aslookup.$(OBJEXT)
 p2c_OBJECTS = $(am_p2c_OBJECTS)
@@ -143,8 +148,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(p2c_SOURCES) $(p2c256_SOURCES)
-DIST_SOURCES = $(p2c_SOURCES) $(p2c256_SOURCES)
+SOURCES = $(b2c_SOURCES) $(p2c_SOURCES) $(p2c256_SOURCES)
+DIST_SOURCES = $(b2c_SOURCES) $(p2c_SOURCES) $(p2c256_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -270,6 +275,9 @@ p2c256_LDADD = \
   -lpcap 
 
 p2c256_CFLAGS = 
+b2c_SOURCES = read_binary.c
+b2c_CFLAGS = 
+b2c_LDADD = 
 all: all-am
 
 .SUFFIXES:
@@ -346,6 +354,10 @@ uninstall-binPROGRAMS:
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
 
+b2c$(EXEEXT): $(b2c_OBJECTS) $(b2c_DEPENDENCIES) $(EXTRA_b2c_DEPENDENCIES) 
+	@rm -f b2c$(EXEEXT)
+	$(AM_V_CCLD)$(b2c_LINK) $(b2c_OBJECTS) $(b2c_LDADD) $(LIBS)
+
 p2c$(EXEEXT): $(p2c_OBJECTS) $(p2c_DEPENDENCIES) $(EXTRA_p2c_DEPENDENCIES) 
 	@rm -f p2c$(EXEEXT)
 	$(AM_V_CCLD)$(p2c_LINK) $(p2c_OBJECTS) $(p2c_LDADD) $(LIBS)
@@ -360,6 +372,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/b2c-read_binary.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/p2c-aslookup.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/p2c-patricia.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/p2c-read_pcap.Po@am__quote@
@@ -380,6 +393,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+b2c-read_binary.o: read_binary.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(b2c_CFLAGS) $(CFLAGS) -MT b2c-read_binary.o -MD -MP -MF $(DEPDIR)/b2c-read_binary.Tpo -c -o b2c-read_binary.o `test -f 'read_binary.c' || echo '$(srcdir)/'`read_binary.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/b2c-read_binary.Tpo $(DEPDIR)/b2c-read_binary.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='read_binary.c' object='b2c-read_binary.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(b2c_CFLAGS) $(CFLAGS) -c -o b2c-read_binary.o `test -f 'read_binary.c' || echo '$(srcdir)/'`read_binary.c
+
+b2c-read_binary.obj: read_binary.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(b2c_CFLAGS) $(CFLAGS) -MT b2c-read_binary.obj -MD -MP -MF $(DEPDIR)/b2c-read_binary.Tpo -c -o b2c-read_binary.obj `if test -f 'read_binary.c'; then $(CYGPATH_W) 'read_binary.c'; else $(CYGPATH_W) '$(srcdir)/read_binary.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/b2c-read_binary.Tpo $(DEPDIR)/b2c-read_binary.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='read_binary.c' object='b2c-read_binary.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(b2c_CFLAGS) $(CFLAGS) -c -o b2c-read_binary.obj `if test -f 'read_binary.c'; then $(CYGPATH_W) 'read_binary.c'; else $(CYGPATH_W) '$(srcdir)/read_binary.c'; fi`
 
 p2c-read_pcap.o: read_pcap.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(p2c_CFLAGS) $(CFLAGS) -MT p2c-read_pcap.o -MD -MP -MF $(DEPDIR)/p2c-read_pcap.Tpo -c -o p2c-read_pcap.o `test -f 'read_pcap.c' || echo '$(srcdir)/'`read_pcap.c

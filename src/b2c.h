@@ -41,25 +41,15 @@
 
 struct binary_csv {
   uint32_t counter;
-  int ttl;
-  char srcip[P2C_BUFSIZ];
-  char dstip[P2C_BUFSIZ];
-  char srcasn[P2C_BUFSIZ];
-  char dstasn[P2C_BUFSIZ];
-  uint16_t proto;
-  uint16_t sport;
-  uint16_t dport;
-  int vec_l3[256][256];
-  int vec_l4[256][256];
-  int vec_l7[256][256];
+  int vec[256][256];
 };
 
 void b2c_init();
 void b2c_usage(void);
-void b2c_data(u_char *, u_int);
-void b2c_word2vec4 (u_char *, u_int, struct binary_csv *);
-void b2c_word2vec8 (u_char *, u_int, struct binary_csv *);
-void b2c_bof (u_char *, u_int, int, struct binary_csv *);
+void b2c_file(char *);
+void b2c_data(void *, u_int, struct binary_csv *);
+void b2c_word2vec4 (void *, u_int, struct binary_csv *);
+void b2c_word2vec8 (void *, u_int, struct binary_csv *);
 
 #endif
 
