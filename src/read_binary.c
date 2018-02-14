@@ -84,7 +84,6 @@ void b2c_file (char *filename){
 	int fd;
 	struct stat fs;
 	u_int filesize = 0;
-	void *buf;
 
 	if (filename == NULL) {
 		b2c_usage();
@@ -104,13 +103,6 @@ void b2c_file (char *filename){
 		filesize = fs.st_size;
 	}
 
-	buf = (void *)malloc(sizeof(void) * filesize + 1); 
-
-	if (read(fd, buf, filesize) != filesize){
-		perror("read");
-		exit(EXIT_FAILURE);
-	}
-
   if ((bc = (struct binary_csv *)malloc(sizeof(struct binary_csv))) == NULL){
     fprintf(stderr, "malloc failed\n");
     exit(EXIT_FAILURE);
@@ -124,8 +116,8 @@ void b2c_file (char *filename){
 	printf("buf:%s\n", (char *)buf);
 	*/
 
-	b2c_data(buf, filesize, bc);
-	free(buf);
+	b2c_data(fd, filesize, bc);
+
 	close (fd);
 	return;
 }
@@ -142,11 +134,11 @@ void b2c_usage (void) {
 	exit (EXIT_SUCCESS);
 }
 
-void b2c_data (void * p, u_int len, struct binary_csv *bc) {
+void b2c_data (int fd, u_int len, struct binary_csv *bc) {
 	int i = 0, j = 0;
 	int max = 16;
 
-	b2c_word2vec4(p, (u_int)len, bc);
+	b2c_word2vec4(fd, (u_int)len, bc);
 
 	for (i = 0; i < max; i++){
 		for (j = 0; j < max; j++){
@@ -163,7 +155,7 @@ void b2c_data (void * p, u_int len, struct binary_csv *bc) {
 	return;
 }
 
-void b2c_word2vec4 (void * buf, u_int len, struct binary_csv *bc) {
+void b2c_word2vec4 (int fd, u_int len, struct binary_csv *bc) {
 	u_int i = 0;
 	u_int j = 1;
 	uint8_t *first8 = NULL, *second8 = NULL;
@@ -171,9 +163,10 @@ void b2c_word2vec4 (void * buf, u_int len, struct binary_csv *bc) {
 	uint8_t second4 = 0;
 	uint8_t third4 = 0;
 	uint8_t fourth4 = 0;
+	u_char buf[B2C_BUFSIZ];
 	u_char *p;
-
-	p = (u_char *) buf;
+	u_int first = 0;
+	u_int second = 1;
 
 	if ((int)len < 0){
 		return;
@@ -181,6 +174,22 @@ void b2c_word2vec4 (void * buf, u_int len, struct binary_csv *bc) {
 
 	for (i = 0; j < len; i++){
 		j = i + 1;
+
+		if (j > len){
+			break;
+		}
+
+		if (lseek(fd, i, SEEK_SET) < 0){
+			perror("lseek");
+			exit(EXIT_FAILURE);
+		}
+
+		if (read(fd, buf, 2) < 0){
+			perror("lseek");
+			exit(EXIT_FAILURE);
+		}
+
+		p = (u_char *) buf;
 
 		/*
 				Given buffer is 4 5 0 0 (imagine tcpdump: IPv4, IHL = 5words, no TOS)
@@ -192,8 +201,9 @@ void b2c_word2vec4 (void * buf, u_int len, struct binary_csv *bc) {
 				fourth4 = 0
 		*/	
 
-		first8 = (uint8_t *)(p + i);
-		second8 = (uint8_t *)(p + j);
+		first8 = (uint8_t *)(p + first);
+		second8 = (uint8_t *)(p + second);
+
 
 		first4 =  ((*first8 & 0xf0) >> 4);
 		second4 = (*first8 & 0x0f);
