@@ -21,8 +21,8 @@ If you want to convert IP address to asnumber, please prepare CAIDA's [Routeview
 ## Compile
 * You may need pcap librarly and headers to compile.
 - `% ./configure`
-- `% ./make`
-- `% sudo ./make install`
+- `% make`
+- `% sudo make install`
 
 ## Usage
 - `r : read PCAP data`
@@ -48,3 +48,9 @@ If you want to convert IP address to asnumber, please prepare CAIDA's [Routeview
  `% p2c -r pcap.cap -x 7`  # observe L7 Payloads  
   
 # binary2csv 
+Binary2CSV is a BoF parser for any files (as well as txt)
+
+## Use cases
+ 1. Read from files
+ `% b2c -r README.md`
+ 
