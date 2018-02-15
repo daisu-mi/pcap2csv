@@ -78,6 +78,9 @@ int aslookup = P2C_FALSE;
 uint32_t counter = 0;
 uint32_t counter_limit = 0;
 
+/* regularize */
+int rg = P2C_FALSE;
+
 int main (int argc, char *argv[]) {
 	char *dumpfile = NULL;
 	char *device = NULL;
@@ -97,9 +100,9 @@ int main (int argc, char *argv[]) {
 
 	/* getopt */
 #ifdef USE_INET6
-	while ((op = getopt (argc, argv, "c:i:r:l:x:X:6dh?")) != -1)
+	while ((op = getopt (argc, argv, "c:i:r:l:x:X:R6dh?")) != -1)
 #else
-	while ((op = getopt (argc, argv, "c:i:r:l:x:X:dh?")) != -1)
+	while ((op = getopt (argc, argv, "c:i:r:l:x:X:Rdh?")) != -1)
 #endif
 		{
 
@@ -188,6 +191,10 @@ int main (int argc, char *argv[]) {
 				}
 				word2vec = P2C_TRUE;
 				word2vec_max = 16;
+				break;
+
+			case 'R':
+				rg = P2C_TRUE;
 				break;
 
 			case 'h':
@@ -302,6 +309,8 @@ void p2c_usage (void) {
 	printf ("			-l [ Routeview file for aslookup ] (optional)\n");
 	printf ("			-d ( Show debug information: optional)\n");
 	printf ("			-x [ Make Word2vec: 3 is L3, 4 is L4, 7 is L7, 0 is All ]\n");
+	printf ("			-X [ Make Word2vec: 3 is L3, 4 is L4, 7 is L7, 0 is All ]\n");
+	printf ("			-R ( Show regularized value for both -x and -X\n");
 	printf ("			[ pcap filter expression ] (optional)\n");
 	printf ("\n");
 	printf (" ex) %s -i eth0 \"port not 22\"\n", progname);
@@ -631,6 +640,7 @@ void p2c_icmp6 (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_
 void p2c_data (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_csv *pc) {
 	int i = 0, j = 0;
 	int max = word2vec_max;
+	int total = 0;
 
 	if (word2vec == P2C_TRUE){
 		p2c_word2vec4(p, (u_int)len, P2C_WORD2VEC_L7, pc);
@@ -645,26 +655,94 @@ void p2c_data (u_char * p, u_int len, const struct pcap_pkthdr *h, struct pcap_c
 		pc->srcip, pc->dstip, pc->srcasn, pc->dstasn,
 		(int)(pc->sport), (int)(pc->dport), (int)(pc->proto));
 
-
 	/* kitayo */
 	if (word2vec == P2C_TRUE || word2vec256 == P2C_TRUE){
+
+		if (rg == P2C_TRUE){
+			/* regularize */
+			for (i = 0; i < max; i++){
+				for (j = 0; j < max; j++){
+					switch(word2vec_flag){
+						case P2C_WORD2VEC_L3:
+							total += (pc->vec_l3[i][j]);
+							break;
+
+						case P2C_WORD2VEC_L4:
+							total += (pc->vec_l4[i][j]);
+							break;
+
+						case P2C_WORD2VEC_L7:
+							total += (pc->vec_l7[i][j]);
+							break;
+
+						case P2C_WORD2VEC_LALL:
+							total += (pc->vec_l3[i][j] + pc->vec_l4[i][j] + pc->vec_l7[i][j]);
+							break;
+
+						default:
+							break;
+					}
+				}
+			}
+		}
+
 		for (i = 0; i < max; i++){
 			for (j = 0; j < max; j++){
 				switch(word2vec_flag){
 					case P2C_WORD2VEC_L3:
-						printf(",%d", pc->vec_l3[i][j]);
+						if (rg == P2C_TRUE){
+							if (total > 0){
+								printf(",%.3f", (double)(pc->vec_l3[i][j])/(double)total);
+							}
+							else {
+								printf(",");
+							}
+						}	
+						else {
+							printf(",%d", pc->vec_l3[i][j]);
+						}
 						break;
 
 					case P2C_WORD2VEC_L4:
-						printf(",%d", pc->vec_l4[i][j]);
+						if (rg == P2C_TRUE){
+							if (total > 0){
+								printf(",%.3f", (double)(pc->vec_l4[i][j])/(double)total);
+							}
+							else {
+								printf(",");
+							}
+						}	
+						else {
+							printf(",%d", pc->vec_l4[i][j]);
+						}
 						break;
 
 					case P2C_WORD2VEC_L7:
-						printf(",%d", pc->vec_l7[i][j]);
+						if (rg == P2C_TRUE){
+							if (total > 0){
+								printf(",%.3f", (double)(pc->vec_l7[i][j])/(double)total);
+							}
+							else {
+								printf(",");
+							}
+						}	
+						else {
+							printf(",%d", pc->vec_l7[i][j]);
+						}
 						break;
 
 					case P2C_WORD2VEC_LALL:
-						printf(",%d", (pc->vec_l3[i][j] + pc->vec_l4[i][j] + pc->vec_l7[i][j]));
+						if (rg == P2C_TRUE){
+							if (total > 0){
+								printf(",%.3f", (double)(pc->vec_l3[i][j] + pc->vec_l4[i][j] + pc->vec_l7[i][j])/(double)total);
+							}
+							else {
+								printf(",");
+							}
+						}	
+						else {
+							printf(",%d", (pc->vec_l3[i][j] + pc->vec_l4[i][j] + pc->vec_l7[i][j]));
+						}
 						break;
 
 					default:
