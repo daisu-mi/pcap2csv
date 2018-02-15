@@ -26,15 +26,17 @@ If you want to convert IP address to asnumber, please prepare CAIDA's [Routeview
 
 ## Usage
 - `r : read PCAP data`
-- `i : read interface directly`
+- `i : read from NIC`
 - `c : max number to read`
 - `l : lookup AS number from IP address with routeview dataset`
-- `x : dump data field with a bag-of-fields (a.k.a, bag-of-words) algorithm`
+- `x : dump data field with a bag-of-fields algorithm (1byte)`
+- `X : dump data field with a bag-of-fields algorithm (2bytes)`
+- `R : regularize dumped data (calculate average)`
 
 ## Use cases
  1. Read 100 packets from a pcap file  
  `% p2c -r pcap.cap -c 100`
- 1. Read from Network Interface Card  
+ 1. Read from NIC  
  `% sudo p2c -i eth0`
  1. Try aslookup option  
  `% (wget http://data.caida.org/datasets/routing/routeviews-prefix2as/.... && gunzip (filename).pfx2as.gz)`  
@@ -42,10 +44,11 @@ If you want to convert IP address to asnumber, please prepare CAIDA's [Routeview
  1. Bug-of-Field option to analyze layer 7 payloads  
  `% p2c -r pcap.cap -x 7`
  1. Bug-of-Field option to analyze other portion  
- `% p2c -r pcap.cap -x 0`  # observe L3 Header, L4 Header, and L7 payloads  
- `% p2c -r pcap.cap -x 3`  # observe L3 Header  
- `% p2c -r pcap.cap -x 4`  # observe L4 Header  
- `% p2c -r pcap.cap -x 7`  # observe L7 Payloads  
+ `% p2c -r pcap.cap -x 0`     # observe L3 Header, L4 Header, and L7 payloads  
+ `% p2c -r pcap.cap -x 3`     # observe L3 Header  
+ `% p2c -r pcap.cap -x 4`     # observe L4 Header  
+ `% p2c -r pcap.cap -x 7`     # observe L7 Payloads  
+ `% p2c -r pcap.cap -X 7 -R`  # observe L7 Payloads (2bytes) and regularize
   
 # binary2csv 
 Binary2CSV is a Bug-of-Field parser for any files (as well as txt)
