@@ -45,6 +45,11 @@ static int debug = B2C_FALSE;
 
 /* word2vec */
 int word2vec = B2C_TRUE;
+int word2vec256 = B2C_FALSE;
+int word2vec_max = 16;
+
+/* regularize */
+int rg = B2C_FALSE;
 
 int main (int argc, char *argv[]) {
 	char *filename = NULL;
@@ -55,7 +60,7 @@ int main (int argc, char *argv[]) {
 	setvbuf(stdout, 0, _IONBF, 0);
 
 	/* getopt */
-	while ((op = getopt (argc, argv, "r:dh?")) != -1)
+	while ((op = getopt (argc, argv, "r:XRdh?")) != -1)
 	{
 
 		switch (op) {
@@ -65,6 +70,16 @@ int main (int argc, char *argv[]) {
 
 			case 'r':		/* read local files */
 				filename = optarg;
+				break;
+
+      case 'X':   /* word2vec256 (-> make 65536 matrix) */
+				word2vec = B2C_FALSE;
+				word2vec256 = B2C_TRUE;
+        word2vec_max = 256;
+        break;
+
+			case 'R':		/* regularize */
+				rg = B2C_TRUE;
 				break;
 
 			case 'h':
@@ -136,13 +151,36 @@ void b2c_usage (void) {
 
 void b2c_data (int fd, u_int len, struct binary_csv *bc) {
 	int i = 0, j = 0;
-	int max = 16;
+	int max = word2vec_max;
+	int total;
 
-	b2c_word2vec4(fd, (u_int)len, bc);
+	if (word2vec == B2C_TRUE){
+		b2c_word2vec4(fd, (u_int)len, bc);
+	}
+	else {
+		b2c_word2vec8(fd, (u_int)len, bc);
+	}
+
+	if (rg == B2C_TRUE){
+		/* regularize */
+		total = 0;
+		for (i = 0; i < max; i++){
+			for (j = 0; j < max; j++){
+				total += (bc->vec[i][j]);
+			}
+		}	
+	}
 
 	for (i = 0; i < max; i++){
 		for (j = 0; j < max; j++){
-			printf("%d", (bc->vec[i][j])); 
+			if (rg == B2C_TRUE){
+				if (total != 0){
+					printf("%.3f", (double)(bc->vec[i][j])/(double)total); 
+				}
+			}
+			else {
+				printf("%d", (bc->vec[i][j])); 
+			}
 
 			if ((max - i) > 1 || (max - j) > 1){
 				printf(",");
@@ -153,6 +191,43 @@ void b2c_data (int fd, u_int len, struct binary_csv *bc) {
 	printf("\n");	
 
 	return;
+}
+
+void b2c_word2vec8 (int fd, u_int len, struct binary_csv *bc) {
+  u_int i = 0;
+  u_int j = 1;
+  uint8_t *first8 = NULL, *second8 = NULL;
+  uint8_t *backup8 = NULL;
+	u_char buf[B2C_BUFSIZ];
+	u_char *p;
+	u_int first = 0;
+	u_int second = 1;
+
+  for (i = 0; j < len; i++){
+    j = i + 1;
+
+    if (j >= len){
+      break;
+    }
+
+		if (lseek(fd, i, SEEK_SET) < 0){
+			perror("lseek");
+			exit(EXIT_FAILURE);
+		}
+
+		if (read(fd, buf, 2) < 0){
+			perror("read");
+			exit(EXIT_FAILURE);
+		}
+
+		p = (u_char *) buf;
+
+    first8 = (uint8_t *)(p + first);
+    second8 = (uint8_t *)(p + second);
+
+    bc->vec[*first8][*second8] += 1;
+  }
+  return;
 }
 
 void b2c_word2vec4 (int fd, u_int len, struct binary_csv *bc) {
